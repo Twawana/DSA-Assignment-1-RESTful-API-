@@ -1,0 +1,11 @@
+# Ballerina build artifacts
+**/target/
+**/*.jar
+
+# Local IDE/editor files
+.vscode/
+.idea/
+*.iml
+
+# OS junk
+.DS_Store
