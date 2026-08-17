@@ -19,19 +19,37 @@ public function createAsset(Asset newAsset) returns Asset|error {
     return created;
 }
 
-// -----------------------------------------------------------------------
-// TODO (team): add a wrapper function per remaining endpoint, following
-// the exact pattern above (call apiClient-> with the right verb/path,
-// `check` it, return the typed result). You'll need one for each of:
-//
-//   - getAsset(assetTag)                        -> GET /assets/{tag}
-//   - updateAsset(assetTag, asset)               -> PUT /assets/{tag}
-//   - deleteAsset(assetTag)                      -> DELETE /assets/{tag}
-//   - getAssetsByInstitution(institution)         -> GET /assets/institution/{institution}
-//   - getAssetsByInstitutionAndSite(inst, site)   -> GET /assets/institution/{institution}/site/{site}
-//   - getOverdueAssets()                          -> GET /assets/overdue
-//   - addSchedule(assetTag, schedule)             -> POST /assets/{tag}/schedules
-//   - removeSchedule(assetTag, scheduleId)        -> DELETE /assets/{tag}/schedules/{id}
-//   - openWorkOrder(assetTag, workOrder)          -> POST /assets/{tag}/workorders
-//   - etc.
-// -----------------------------------------------------------------------
+public function getAsset(string assetTag) returns Asset|error {
+    Asset result = check apiClient->get("/assets/" + assetTag);
+    return result;
+}
+
+public function updateAsset(string assetTag, Asset updatedAsset) returns Asset|error {
+    Asset result = check apiClient->put("/assets/" + assetTag, updatedAsset);
+    return result;
+}
+
+public function getAssetsByInstitution(string institution) returns Asset[]|error {
+    Asset[] result = check apiClient->get("/assets/institution/" + institution);
+    return result;
+}
+
+public function getAssetsByInstitutionAndSite(string institution, string site) returns Asset[]|error {
+    Asset[] result = check apiClient->get("/assets/institution/" + institution + "/site/" + site);
+    return result;
+}
+
+public function getOverdueAssets() returns Asset[]|error {
+    Asset[] result = check apiClient->get("/assets/overdue");
+    return result;
+}
+
+public function addSchedule(string assetTag, Schedule newSchedule) returns Asset|error {
+    Asset result = check apiClient->post("/assets/" + assetTag + "/schedules", newSchedule);
+    return result;
+}
+
+public function removeSchedule(string assetTag, string scheduleId) returns Asset|error {
+    Asset result = check apiClient->delete("/assets/" + assetTag + "/schedules/" + scheduleId);
+    return result;
+}  
