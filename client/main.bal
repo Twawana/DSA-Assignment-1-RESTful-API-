@@ -27,11 +27,11 @@ public function main() returns error? {
             "4" => {
                 io:println("TODO: implement loaning/booking flow");
             }
-            "5" => {
-                io:println("TODO: implement overdue dashboard using getOverdueAssets()");
+                        "5" => {
+                check showOverdueDashboard();
             }
-            "6" => {
-                io:println("TODO: implement schedule manager (add/remove schedules)");
+                       "6" => {
+                check scheduleManagerFlow();
             }
             "0" => {
                 running = false;
@@ -82,4 +82,62 @@ function addAssetFlow() returns error? {
     } else {
         io:println("Error creating asset: ", result.message());
     }
+    }
+        # Fetches and prints every asset with an overdue schedule.
+function showOverdueDashboard() returns error? {
+    Asset[]|error result = getOverdueAssets();
+    if result is error {
+        io:println("Failed to fetch overdue assets: ", result.message());
+        return;
+    }
+    if result.length() == 0 {
+        io:println("No overdue assets. Everything is up to date.");
+        return;
+    }
+    io:println("\n--- OVERDUE ASSETS ---");
+    foreach Asset a in result {
+        io:println(a.assetTag, " | ", a.name, " | ", a.institution, " - ", a.site);
+        foreach Schedule sch in a.schedules {
+            io:println("    -> ", sch.scheduleId, " (", sch.'type, ") due ", sch.dueDate, " - ", sch.description ?: "");
+        }
+    }
 }
+
+# Lets the user add or remove a schedule on a given asset.
+function scheduleManagerFlow() returns error? {
+    string assetTag = io:readln("Asset tag: ");
+    string action = io:readln("Add or remove a schedule? (add/remove): ");
+
+    if action == "add" {
+        string scheduleId = io:readln("Schedule ID: ");
+        string scheduleType = io:readln("Type (MAINTENANCE/BOOKING/SERVICING): ");
+        string dueDate = io:readln("Due date (YYYY-MM-DD): ");
+        string description = io:readln("Description: ");
+
+        Schedule newSchedule = {
+            scheduleId: scheduleId,
+            'type: scheduleType,
+            dueDate: dueDate,
+            description: description
+        };
+
+        Asset|error result = addSchedule(assetTag, newSchedule);
+        if result is Asset {
+            io:println("Schedule added. ", assetTag, " now has ", result.schedules.length(), " schedule(s).");
+        } else {
+            io:println("Error adding schedule: ", result.message());
+        }
+    } else if action == "remove" {
+        string scheduleId = io:readln("Schedule ID to remove: ");
+
+        Asset|error result = removeSchedule(assetTag, scheduleId);
+        if result is Asset {
+            io:println("Schedule removed. ", assetTag, " now has ", result.schedules.length(), " schedule(s).");
+        } else {
+            io:println("Error removing schedule: ", result.message());
+        }
+    } else {
+        io:println("Invalid option, try 'add' or 'remove'.");
+    }
+}
+

@@ -19,19 +19,27 @@ public function createAsset(Asset newAsset) returns Asset|error {
     return created;
 }
 
-// -----------------------------------------------------------------------
-// TODO (team): add a wrapper function per remaining endpoint, following
-// the exact pattern above (call apiClient-> with the right verb/path,
-// `check` it, return the typed result). You'll need one for each of:
-//
-//   - getAsset(assetTag)                        -> GET /assets/{tag}
-//   - updateAsset(assetTag, asset)               -> PUT /assets/{tag}
-//   - deleteAsset(assetTag)                      -> DELETE /assets/{tag}
-//   - getAssetsByInstitution(institution)         -> GET /assets/institution/{institution}
-//   - getAssetsByInstitutionAndSite(inst, site)   -> GET /assets/institution/{institution}/site/{site}
-//   - getOverdueAssets()                          -> GET /assets/overdue
-//   - addSchedule(assetTag, schedule)             -> POST /assets/{tag}/schedules
-//   - removeSchedule(assetTag, scheduleId)        -> DELETE /assets/{tag}/schedules/{id}
-//   - openWorkOrder(assetTag, workOrder)          -> POST /assets/{tag}/workorders
-//   - etc.
-// -----------------------------------------------------------------------
+# Fetch every asset with at least one overdue schedule.
+# + return - overdue assets, or an error if the call failed
+public function getOverdueAssets() returns Asset[]|error {
+    Asset[] assets = check apiClient->get("/assets/overdue");
+    return assets;
+}
+
+# Add a schedule to an asset.
+# + assetTag - the unique asset identifier
+# + newSchedule - the schedule to add
+# + return - the updated asset, or an error if the call failed
+public function addSchedule(string assetTag, Schedule newSchedule) returns Asset|error {
+    Asset updated = check apiClient->post("/assets/" + assetTag + "/schedules", newSchedule);
+    return updated;
+}
+
+# Remove a schedule from an asset.
+# + assetTag - the unique asset identifier
+# + scheduleId - the schedule identifier to remove
+# + return - the updated asset, or an error if the call failed
+public function removeSchedule(string assetTag, string scheduleId) returns Asset|error {
+    Asset updated = check apiClient->delete("/assets/" + assetTag + "/schedules/" + scheduleId);
+    return updated;
+}
