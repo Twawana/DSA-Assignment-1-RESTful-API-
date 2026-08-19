@@ -1,4 +1,5 @@
 import ballerina/http;
+import ballerina/time;
 
 service /api on new http:Listener(8080) {
 
@@ -81,10 +82,20 @@ service /api on new http:Listener(8080) {
     # at the top of this file and `time:utcNow()` (or civil date compare)
     # to get today's date, then compare against each Schedule.dueDate.
     # + return - assets with at least one overdue schedule
-    resource function get assets/overdue() returns Asset[] {
-        return [];
-    }
+        resource function get assets/overdue() returns Asset[] {
+        string today = time:utcToString(time:utcNow()).substring(0, 10); // "YYYY-MM-DD"
 
+        Asset[] overdueAssets = [];
+        foreach Asset asset in assetStore {
+            foreach Schedule sch in asset.schedules {
+                if sch.dueDate < today {
+                    overdueAssets.push(asset);
+                    break;
+                }
+            }
+        }
+        return overdueAssets;
+    }
     // =================================================================
     // INSTITUTION MANAGEMENT  (mark scheme: 5 marks)
     // =================================================================
@@ -132,15 +143,13 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Add a servicing/booking/maintenance schedule to an asset.
     # + assetTag - the unique asset identifier
     # + newSchedule - the schedule to add
-    resource function post assets/[string assetTag]/schedules(@http:Payload Schedule newSchedule) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
-    }
-
-    # TODO (3 marks): Remove a schedule from an asset by scheduleId.
-    # + assetTag - the unique asset identifier
-    # + scheduleId - the schedule identifier to remove
-    resource function delete assets/[string assetTag]/schedules/[string scheduleId]() returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+       resource function post assets/[string assetTag]/schedules(@http:Payload Schedule newSchedule) returns Asset|http:NotFound {
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+        asset.schedules.push(newSchedule);
+        return asset;
     }
 
     // =================================================================
@@ -176,4 +185,28 @@ service /api on new http:Listener(8080) {
     resource function post assets/[string assetTag]/workorders/[string orderId]/tasks(@http:Payload Task newTask) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
+        # TODO (3 marks): Remove a schedule from an asset by scheduleId.
+    # + assetTag - the unique asset identifier
+    # + scheduleId - the schedule identifier to remove
+    # + return - the updated asset, or 404 if the asset doesn't exist
+    resource function delete assets/[string assetTag]/schedules/[string scheduleId]() returns Asset|http:NotFound {
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        int? indexToRemove = ();
+        foreach int i in 0 ..< asset.schedules.length() {
+            if asset.schedules[i].scheduleId == scheduleId {
+                indexToRemove = i;
+            }
+        }
+
+        if indexToRemove is int {
+            _ = asset.schedules.remove(indexToRemove);
+        }
+        return asset;
+    }
 }
+
+   
