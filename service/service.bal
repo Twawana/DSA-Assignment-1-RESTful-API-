@@ -1,4 +1,25 @@
 import ballerina/http;
+import ballerina/time;
+
+// --- Task 2 support: schedule ID generation ---
+int scheduleIdCounter = 0;
+
+function generateScheduleId(string assetTag) returns string {
+    lock {
+        scheduleIdCounter += 1;
+    }
+    return assetTag + "-SCH-" + scheduleIdCounter.toString();
+}
+
+// --- Task 2 support: date comparison ---
+function isPastDue(string dueDate) returns boolean {
+    time:Utc|error dueUtc = time:utcFromString(dueDate + "T00:00:00.00Z");
+    if dueUtc is error {
+        return false; // malformed date — skip rather than crash the scan
+    }
+    time:Utc now = time:utcNow();
+    return time:utcDiffSeconds(now, dueUtc) > 0d;
+}
 
 service /api on new http:Listener(8080) {
 
@@ -43,6 +64,7 @@ service /api on new http:Listener(8080) {
     # exists first, then overwrite assetStore[assetTag].
     # + assetTag - the unique asset identifier
     # + updatedAsset - the new asset payload
+    # + return - the updated asset, or 404 if it doesn't exist
     resource function put assets/[string assetTag](@http:Payload Asset updatedAsset) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -50,6 +72,7 @@ service /api on new http:Listener(8080) {
     # TODO (5 marks - part of "create and manage resources"):
     # Delete an asset. Validate it exists, then remove it from assetStore.
     # + assetTag - the unique asset identifier
+    # + return - 200 on success, or 404 if the asset doesn't exist
     resource function delete assets/[string assetTag]() returns http:Ok|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -61,6 +84,7 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Filter assets by institution only.
     # Hint: `assetStore.toArray().filter(a => a.institution == institution)`
     # + institution - institution name to filter by
+    # + return - assets belonging to the given institution
     resource function get assets/institution/[string institution]() returns Asset[] {
         return [];
     }
@@ -68,6 +92,7 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Filter assets by institution AND site/campus.
     # + institution - institution name to filter by
     # + site - site/campus name to filter by
+    # + return - assets matching both institution and site
     resource function get assets/institution/[string institution]/site/[string site]() returns Asset[] {
         return [];
     }
@@ -76,13 +101,26 @@ service /api on new http:Listener(8080) {
     // MAINTENANCE & OVERDUE CHECKS  (mark scheme: 5 marks)
     // =================================================================
 
-    # TODO (5 marks): Return every asset that has at least one schedule
-    # whose dueDate is before today. You'll want `import ballerina/time;`
-    # at the top of this file and `time:utcNow()` (or civil date compare)
-    # to get today's date, then compare against each Schedule.dueDate.
+    # Return every asset that has at least one schedule whose dueDate
+    # is before today.
     # + return - assets with at least one overdue schedule
     resource function get assets/overdue() returns Asset[] {
-        return [];
+        Asset[] overdueAssets = [];
+
+        foreach Asset asset in assetStore {
+            boolean hasOverdueSchedule = false;
+            foreach Schedule sched in asset.schedules {
+                if isPastDue(sched.dueDate) {
+                    hasOverdueSchedule = true;
+                    break;
+                }
+            }
+            if hasOverdueSchedule {
+                overdueAssets.push(asset);
+            }
+        }
+
+        return overdueAssets;
     }
 
     // =================================================================
@@ -90,6 +128,7 @@ service /api on new http:Listener(8080) {
     // =================================================================
 
     # Retrieve all registered institutions.
+    # + return - array of all known institutions
     resource function get institutions() returns Institution[] {
         return institutionStore.toArray();
     }
@@ -97,12 +136,14 @@ service /api on new http:Listener(8080) {
     # TODO (5 marks): Add a new institution. Guard against a duplicate
     # institutionId the same way asset creation does above.
     # + newInstitution - the institution payload
+    # + return - the created institution, or a conflict response
     resource function post institutions(@http:Payload Institution newInstitution) returns Institution|http:Conflict {
         return newInstitution;
     }
 
     # TODO (5 marks): Remove an institution by id.
     # + institutionId - the unique institution identifier
+    # + return - 200 on success, or 404 if the institution doesn't exist
     resource function delete institutions/[string institutionId]() returns http:Ok|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -114,6 +155,7 @@ service /api on new http:Listener(8080) {
     # TODO: Append a component to an asset's components array.
     # + assetTag - the unique asset identifier
     # + newComponent - the component to add
+    # + return - the updated asset, or 404 if the asset doesn't exist
     resource function post assets/[string assetTag]/components(@http:Payload Component newComponent) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -121,6 +163,7 @@ service /api on new http:Listener(8080) {
     # TODO: Remove a component from an asset by compId.
     # + assetTag - the unique asset identifier
     # + compId - the component identifier to remove
+    # + return - the updated asset, or 404 if asset/component not found
     resource function delete assets/[string assetTag]/components/[string compId]() returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -129,18 +172,63 @@ service /api on new http:Listener(8080) {
     // SCHEDULES  (mark scheme: 3 marks)
     // =================================================================
 
-    # TODO (3 marks): Add a servicing/booking/maintenance schedule to an asset.
+    # Add a servicing/booking/maintenance schedule to an asset. Assigns
+    # a unique scheduleId if the client didn't supply one.
     # + assetTag - the unique asset identifier
     # + newSchedule - the schedule to add
+    # + return - the updated asset, or 404 if the asset doesn't exist
     resource function post assets/[string assetTag]/schedules(@http:Payload Schedule newSchedule) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        string scheduleId = newSchedule.scheduleId.trim().length() > 0
+            ? newSchedule.scheduleId
+            : generateScheduleId(assetTag);
+
+        Schedule scheduleToAdd = {
+            scheduleId: scheduleId,
+            'type: newSchedule.'type,
+            dueDate: newSchedule.dueDate,
+            description: newSchedule?.description
+        };
+
+        asset.schedules.push(scheduleToAdd);
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
-    # TODO (3 marks): Remove a schedule from an asset by scheduleId.
+    # Remove a schedule from an asset by scheduleId. 404 if either the
+    # asset or the schedule doesn't exist.
     # + assetTag - the unique asset identifier
     # + scheduleId - the schedule identifier to remove
+    # + return - the updated asset, or 404 if asset/schedule not found
     resource function delete assets/[string assetTag]/schedules/[string scheduleId]() returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        int? indexToRemove = ();
+        foreach int i in 0 ..< asset.schedules.length() {
+            if asset.schedules[i].scheduleId == scheduleId {
+                indexToRemove = i;
+                break;
+            }
+        }
+
+        if indexToRemove is () {
+            return <http:NotFound>{
+                body: {message: "Schedule not found on this asset", errorCode: "SCHEDULE_NOT_FOUND"}
+            };
+        }
+
+        _ = asset.schedules.remove(indexToRemove);
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
     // =================================================================
@@ -150,6 +238,7 @@ service /api on new http:Listener(8080) {
     # TODO: Open a new work order on an asset (e.g. reporting a fault).
     # + assetTag - the unique asset identifier
     # + newWorkOrder - the work order to open
+    # + return - the updated asset, or 404 if the asset doesn't exist
     resource function post assets/[string assetTag]/workorders(@http:Payload WorkOrder newWorkOrder) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -158,6 +247,7 @@ service /api on new http:Listener(8080) {
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     # + updatedWorkOrder - the new work order details
+    # + return - the updated asset, or 404 if asset/work order not found
     resource function put assets/[string assetTag]/workorders/[string orderId](@http:Payload WorkOrder updatedWorkOrder) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -165,6 +255,7 @@ service /api on new http:Listener(8080) {
     # TODO: Close/remove a work order.
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
+    # + return - the updated asset, or 404 if asset/work order not found
     resource function delete assets/[string assetTag]/workorders/[string orderId]() returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -173,6 +264,7 @@ service /api on new http:Listener(8080) {
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     # + newTask - the sub-task to add
+    # + return - the updated asset, or 404 if asset/work order not found
     resource function post assets/[string assetTag]/workorders/[string orderId]/tasks(@http:Payload Task newTask) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
