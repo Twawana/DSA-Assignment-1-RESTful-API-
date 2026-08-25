@@ -2,10 +2,7 @@ import ballerina/http;
 
 service /api on new http:Listener(8080) {
 
-    // =================================================================
-    // ASSET CRUD  (mark scheme: "Create and manage resources" - 5 marks)
-    // Create + Read are done below as a worked example of the pattern.
-    // =================================================================
+  
 
     # Create a new asset. Rejects duplicate assetTags (409).
     # + newAsset - the asset payload from the client
