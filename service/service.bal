@@ -90,7 +90,25 @@ service /api on new http:Listener(8080) {
     # + updatedAsset - the new asset payload
     # + return - the updated asset, or 404 if it doesn't exist
     resource function put assets/[string assetTag](@http:Payload Asset updatedAsset) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? existing = assetStore[assetTag];
+        if existing is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        Asset replacement = {
+            assetTag: assetTag,
+            name: updatedAsset.name,
+            description: updatedAsset?.description,
+            institution: updatedAsset.institution,
+            site: updatedAsset.site,
+            status: updatedAsset.status,
+            dateAcquired: updatedAsset.dateAcquired,
+            components: updatedAsset.components,
+            schedules: updatedAsset.schedules,
+            workOrders: updatedAsset.workOrders
+        };
+        assetStore[assetTag] = replacement;
+        return replacement;
     }
 
     # TODO (5 marks - part of "create and manage resources"):
@@ -98,7 +116,11 @@ service /api on new http:Listener(8080) {
     # + assetTag - the unique asset identifier
     # + return - 200 on success, or 404 if the asset doesn't exist
     resource function delete assets/[string assetTag]() returns http:Ok|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        if !assetStore.hasKey(assetTag) {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+        _ = assetStore.remove(assetTag);
+        return <http:Ok>{body: {message: "Asset deleted", assetTag: assetTag}};
     }
 
     // =================================================================
@@ -110,7 +132,9 @@ service /api on new http:Listener(8080) {
     # + institution - institution name to filter by
     # + return - assets belonging to the given institution
     resource function get assets/institution/[string institution]() returns Asset[] {
-        return [];
+        return assetStore.toArray().filter(function (Asset asset) returns boolean {
+            return asset.institution == institution;
+        });
     }
 
     # TODO (3 marks): Filter assets by institution AND site/campus.
@@ -118,7 +142,9 @@ service /api on new http:Listener(8080) {
     # + site - site/campus name to filter by
     # + return - assets matching both institution and site
     resource function get assets/institution/[string institution]/site/[string site]() returns Asset[] {
-        return [];
+        return assetStore.toArray().filter(function (Asset asset) returns boolean {
+            return asset.institution == institution && asset.site == site;
+        });
     }
 
     // =================================================================
@@ -162,6 +188,12 @@ service /api on new http:Listener(8080) {
     # + newInstitution - the institution payload
     # + return - the created institution, or a conflict response
     resource function post institutions(@http:Payload Institution newInstitution) returns Institution|http:Conflict {
+        if institutionStore.hasKey(newInstitution.institutionId) {
+            return <http:Conflict>{
+                body: {message: "Institution with this institutionId already exists", errorCode: "DUPLICATE_INSTITUTION_ID"}
+            };
+        }
+        institutionStore[newInstitution.institutionId] = newInstitution;
         return newInstitution;
     }
 
@@ -169,7 +201,11 @@ service /api on new http:Listener(8080) {
     # + institutionId - the unique institution identifier
     # + return - 200 on success, or 404 if the institution doesn't exist
     resource function delete institutions/[string institutionId]() returns http:Ok|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        if !institutionStore.hasKey(institutionId) {
+            return <http:NotFound>{body: {message: "Institution not found", errorCode: "INSTITUTION_NOT_FOUND"}};
+        }
+        _ = institutionStore.remove(institutionId);
+        return <http:Ok>{body: {message: "Institution deleted", institutionId: institutionId}};
     }
 
     // =================================================================

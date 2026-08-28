@@ -36,6 +36,13 @@ public function updateAsset(string assetTag, Asset updatedAsset) returns Asset|e
     return result;
 }
 
+# Delete an asset by its tag.
+# + assetTag - the unique asset identifier
+# + return - an error if the call failed
+public function deleteAsset(string assetTag) returns error? {
+    _ = check apiClient->delete("/assets/" + assetTag, targetType = http:Response);
+}
+
 # Fetch assets belonging to one institution.
 # + institution - institution name to filter by
 # + return - matching assets, or an error if the call failed
@@ -134,7 +141,3 @@ public function removeSchedule(string assetTag, string scheduleId) returns Asset
     return updated;
 }
 
-// -----------------------------------------------------------------------
-// TODO (team): remaining wrappers, if needed:
-//   - deleteAsset(assetTag) -> DELETE /assets/{tag}
-// -----------------------------------------------------------------------
