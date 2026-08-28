@@ -7,8 +7,8 @@ public function main() returns error? {
         io:println("\n=== Library & Resource Management - Client ===");
         io:println("1. View all assets (Global View)");
         io:println("2. Add a new asset");
-        io:println("3. View assets by institution/site (Campus View)");     // TODO
-        io:println("4. Loan an asset / book a room");                       // TODO
+        io:println("3. View assets by institution/site (Campus View)");
+        io:println("4. Loan an asset / book a room");
         io:println("5. Overdue dashboard");
         io:println("6. Schedule manager");
         io:println("7. Components & work orders");
@@ -23,10 +23,10 @@ public function main() returns error? {
                 check addAssetFlow();
             }
             "3" => {
-                io:println("TODO: prompt for institution/site and call getAssetsByInstitution(...)");
+                check campusViewFlow();
             }
             "4" => {
-                io:println("TODO: implement loaning/booking flow");
+                check loanOrBookFlow();
             }
             "5" => {
                 check showOverdueDashboard();
@@ -48,7 +48,6 @@ public function main() returns error? {
     return;
 }
 
-# Worked example: fetches and prints every asset.
 function showAllAssets() returns error? {
     Asset[]|error result = getAllAssets();
     if result is error {
@@ -64,7 +63,6 @@ function showAllAssets() returns error? {
     }
 }
 
-# Worked example: prompts for the required fields and creates an asset.
 function addAssetFlow() returns error? {
     string tag = io:readln("Asset tag: ");
     string name = io:readln("Name: ");
@@ -85,6 +83,53 @@ function addAssetFlow() returns error? {
         io:println("Created: ", result.assetTag);
     } else {
         io:println("Error creating asset: ", result.message());
+    }
+}
+
+function campusViewFlow() returns error? {
+    string institution = io:readln("Institution: ");
+    string site = io:readln("Site/Campus (leave blank for all sites): ");
+
+    Asset[]|error result;
+    if site.trim() == "" {
+        result = getAssetsByInstitution(institution);
+    } else {
+        result = getAssetsByInstitutionAndSite(institution, site);
+    }
+
+    if result is error {
+        io:println("Failed to fetch assets: ", result.message());
+        return;
+    }
+    if result.length() == 0 {
+        io:println("No assets found for that institution/site.");
+        return;
+    }
+    foreach Asset a in result {
+        io:println(a.assetTag, " | ", a.name, " | ", a.institution, " - ", a.site, " | ", a.status);
+    }
+}
+
+function loanOrBookFlow() returns error? {
+    string tag = io:readln("Asset tag to loan/book: ");
+
+    Asset|error current = getAsset(tag);
+    if current is error {
+        io:println("Could not find that asset: ", current.message());
+        return;
+    }
+
+    string statusChoice = io:readln("Set status to (1) LOANED_OUT or (2) OCCUPIED: ");
+    AssetStatus newStatus = statusChoice == "2" ? OCCUPIED : LOANED_OUT;
+
+    Asset updated = current;
+    updated.status = newStatus;
+
+    Asset|error result = updateAsset(tag, updated);
+    if result is Asset {
+        io:println("Updated ", result.assetTag, " to status ", result.status);
+    } else {
+        io:println("Error updating asset: ", result.message());
     }
 }
 

@@ -27,6 +27,32 @@ public function getAsset(string assetTag) returns Asset|error {
     return asset;
 }
 
+# Replace an existing asset.
+# + assetTag - the unique asset identifier
+# + updatedAsset - the new asset payload
+# + return - the updated asset, or an error if the call failed
+public function updateAsset(string assetTag, Asset updatedAsset) returns Asset|error {
+    Asset result = check apiClient->put("/assets/" + assetTag, updatedAsset);
+    return result;
+}
+
+# Fetch assets belonging to one institution.
+# + institution - institution name to filter by
+# + return - matching assets, or an error if the call failed
+public function getAssetsByInstitution(string institution) returns Asset[]|error {
+    Asset[] result = check apiClient->get("/assets/institution/" + institution);
+    return result;
+}
+
+# Fetch assets belonging to one institution and site.
+# + institution - institution name to filter by
+# + site - site/campus name to filter by
+# + return - matching assets, or an error if the call failed
+public function getAssetsByInstitutionAndSite(string institution, string site) returns Asset[]|error {
+    Asset[] result = check apiClient->get("/assets/institution/" + institution + "/site/" + site);
+    return result;
+}
+
 # Add a physical component to an asset.
 # + assetTag - the unique asset identifier
 # + newComponent - the component to add
@@ -109,12 +135,6 @@ public function removeSchedule(string assetTag, string scheduleId) returns Asset
 }
 
 // -----------------------------------------------------------------------
-// TODO (team): add a wrapper function per remaining endpoint, following
-// the exact pattern above (call apiClient-> with the right verb/path,
-// `check` it, return the typed result). You'll need one for each of:
-//
-//   - updateAsset(assetTag, asset)               -> PUT /assets/{tag}
-//   - deleteAsset(assetTag)                      -> DELETE /assets/{tag}
-//   - getAssetsByInstitution(institution)         -> GET /assets/institution/{institution}
-//   - getAssetsByInstitutionAndSite(inst, site)   -> GET /assets/institution/{institution}/site/{site}
+// TODO (team): remaining wrappers, if needed:
+//   - deleteAsset(assetTag) -> DELETE /assets/{tag}
 // -----------------------------------------------------------------------
