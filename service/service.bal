@@ -88,6 +88,7 @@ service /api on new http:Listener(8080) {
     # exists first, then overwrite assetStore[assetTag].
     # + assetTag - the unique asset identifier
     # + updatedAsset - the new asset payload
+    # + return - the updated asset, or a 404 if the asset does not exist
     resource function put assets/[string assetTag](@http:Payload Asset updatedAsset) returns Asset|http:NotFound {
         Asset? existing = assetStore[assetTag];
         if existing is () {
@@ -113,6 +114,7 @@ service /api on new http:Listener(8080) {
     # TODO (5 marks - part of "create and manage resources"):
     # Delete an asset. Validate it exists, then remove it from assetStore.
     # + assetTag - the unique asset identifier
+    # + return - a success message or 404 if the asset is missing
     resource function delete assets/[string assetTag]() returns http:Ok|http:NotFound {
         if !assetStore.hasKey(assetTag) {
             return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
@@ -128,6 +130,7 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Filter assets by institution only.
     # Hint: `assetStore.toArray().filter(a => a.institution == institution)`
     # + institution - institution name to filter by
+    # + return - all assets belonging to the institution
     resource function get assets/institution/[string institution]() returns Asset[] {
         return assetStore.toArray().filter(function (Asset asset) returns boolean {
             return asset.institution == institution;
@@ -137,6 +140,7 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Filter assets by institution AND site/campus.
     # + institution - institution name to filter by
     # + site - site/campus name to filter by
+    # + return - the matching assets in the institution and site
     resource function get assets/institution/[string institution]/site/[string site]() returns Asset[] {
         return assetStore.toArray().filter(function (Asset asset) returns boolean {
             return asset.institution == institution && asset.site == site;
@@ -161,6 +165,7 @@ service /api on new http:Listener(8080) {
     // =================================================================
 
     # Retrieve all registered institutions.
+    # + return - the list of all registered institutions
     resource function get institutions() returns Institution[] {
         return institutionStore.toArray();
     }
@@ -168,6 +173,7 @@ service /api on new http:Listener(8080) {
     # TODO (5 marks): Add a new institution. Guard against a duplicate
     # institutionId the same way asset creation does above.
     # + newInstitution - the institution payload
+    # + return - the created institution or a duplicate conflict response
     resource function post institutions(@http:Payload Institution newInstitution) returns Institution|http:Conflict {
         if institutionStore.hasKey(newInstitution.institutionId) {
             return <http:Conflict>{
@@ -180,6 +186,7 @@ service /api on new http:Listener(8080) {
 
     # TODO (5 marks): Remove an institution by id.
     # + institutionId - the unique institution identifier
+    # + return - a success confirmation or 404 if the institution is missing
     resource function delete institutions/[string institutionId]() returns http:Ok|http:NotFound {
         if !institutionStore.hasKey(institutionId) {
             return <http:NotFound>{body: {message: "Institution not found", errorCode: "INSTITUTION_NOT_FOUND"}};
@@ -196,6 +203,7 @@ service /api on new http:Listener(8080) {
     # compId if the client didn't supply one.
     # + assetTag - the unique asset identifier
     # + newComponent - the component to add
+    # + return - the updated asset or 404 if the asset does not exist
     resource function post assets/[string assetTag]/components(@http:Payload Component newComponent) returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
         if asset is () {
@@ -222,6 +230,7 @@ service /api on new http:Listener(8080) {
     # asset or the component doesn't exist.
     # + assetTag - the unique asset identifier
     # + compId - the component identifier to remove
+    # + return - the updated asset or a not-found error
     resource function delete assets/[string assetTag]/components/[string compId]() returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
         if asset is () {
@@ -255,6 +264,7 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Add a servicing/booking/maintenance schedule to an asset.
     # + assetTag - the unique asset identifier
     # + newSchedule - the schedule to add
+    # + return - the updated asset or 404 if the asset is missing
     resource function post assets/[string assetTag]/schedules(@http:Payload Schedule newSchedule) returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -262,6 +272,7 @@ service /api on new http:Listener(8080) {
     # TODO (3 marks): Remove a schedule from an asset by scheduleId.
     # + assetTag - the unique asset identifier
     # + scheduleId - the schedule identifier to remove
+    # + return - the updated asset or 404 if the asset or schedule is missing
     resource function delete assets/[string assetTag]/schedules/[string scheduleId]() returns Asset|http:NotFound {
         return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
     }
@@ -274,6 +285,7 @@ service /api on new http:Listener(8080) {
     # Defaults status to OPEN and assigns a unique orderId if missing.
     # + assetTag - the unique asset identifier
     # + newWorkOrder - the work order to open
+    # + return - the updated asset or 404 if the asset is missing
     resource function post assets/[string assetTag]/workorders(@http:Payload WorkOrder newWorkOrder) returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
         if asset is () {
@@ -306,6 +318,7 @@ service /api on new http:Listener(8080) {
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     # + updatedWorkOrder - the new work order details
+    # + return - the updated asset or 404 if the asset or order is missing
     resource function put assets/[string assetTag]/workorders/[string orderId](@http:Payload WorkOrder updatedWorkOrder) returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
         if asset is () {
@@ -348,6 +361,7 @@ service /api on new http:Listener(8080) {
     # Close/remove a work order (and its nested tasks) from an asset.
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
+    # + return - the updated asset or 404 if the asset or order is missing
     resource function delete assets/[string assetTag]/workorders/[string orderId]() returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
         if asset is () {
@@ -379,6 +393,7 @@ service /api on new http:Listener(8080) {
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     # + newTask - the sub-task to add
+    # + return - the updated asset or 404 if the asset or work order is missing
     resource function post assets/[string assetTag]/workorders/[string orderId]/tasks(@http:Payload Task newTask) returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
         if asset is () {

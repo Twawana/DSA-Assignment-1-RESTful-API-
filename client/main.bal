@@ -48,6 +48,8 @@ public function main() returns error? {
     return;
 }
 
+# Fetches and prints the full asset list.
+# + return - an optional error while retrieving assets
 function showAllAssets() returns error? {
     Asset[]|error result = getAllAssets();
     if result is error {
@@ -63,6 +65,8 @@ function showAllAssets() returns error? {
     }
 }
 
+# Adds a new asset using console input.
+# + return - an optional error while creating the asset
 function addAssetFlow() returns error? {
     string tag = io:readln("Asset tag: ");
     string name = io:readln("Name: ");
@@ -86,6 +90,8 @@ function addAssetFlow() returns error? {
     }
 }
 
+# Displays assets for an institution, optionally filtered by site.
+# + return - an optional error while fetching the filtered asset list
 function campusViewFlow() returns error? {
     string institution = io:readln("Institution: ");
     string site = io:readln("Site/Campus (leave blank for all sites): ");
@@ -110,6 +116,8 @@ function campusViewFlow() returns error? {
     }
 }
 
+# Lets the user change an asset status between loaned and occupied.
+# + return - an optional error while loading or updating the asset
 function loanOrBookFlow() returns error? {
     string tag = io:readln("Asset tag to loan/book: ");
 
@@ -134,6 +142,7 @@ function loanOrBookFlow() returns error? {
 }
 
 # Fetches and prints every asset with an overdue schedule.
+# + return - an optional error while loading overdue assets
 function showOverdueDashboard() returns error? {
     Asset[]|error result = getOverdueAssets();
     if result is error {
@@ -154,6 +163,7 @@ function showOverdueDashboard() returns error? {
 }
 
 # Lets the user add or remove a schedule on a given asset.
+# + return - an optional error while managing schedules
 function scheduleManagerFlow() returns error? {
     string assetTag = io:readln("Asset tag: ");
     string action = io:readln("Add or remove a schedule? (add/remove): ");
@@ -192,6 +202,7 @@ function scheduleManagerFlow() returns error? {
 }
 
 # Submenu for nested components, work orders, and tasks on an asset.
+# + return - an optional error while handling nested asset operations
 function componentsAndWorkOrdersMenu() returns error? {
     boolean inMenu = true;
     while inMenu {
