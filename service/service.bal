@@ -1,4 +1,49 @@
 import ballerina/http;
+import ballerina/time;
+
+// --- Nested resource ID generation ---
+int scheduleIdCounter = 0;
+int componentIdCounter = 0;
+int workOrderIdCounter = 0;
+int taskIdCounter = 0;
+
+function generateScheduleId(string assetTag) returns string {
+    lock {
+        scheduleIdCounter += 1;
+    }
+    return assetTag + "-SCH-" + scheduleIdCounter.toString();
+}
+
+function generateComponentId(string assetTag) returns string {
+    lock {
+        componentIdCounter += 1;
+    }
+    return assetTag + "-COMP-" + componentIdCounter.toString();
+}
+
+function generateWorkOrderId(string assetTag) returns string {
+    lock {
+        workOrderIdCounter += 1;
+    }
+    return assetTag + "-WO-" + workOrderIdCounter.toString();
+}
+
+function generateTaskId(string assetTag) returns string {
+    lock {
+        taskIdCounter += 1;
+    }
+    return assetTag + "-TASK-" + taskIdCounter.toString();
+}
+
+// --- Task 2 support: date comparison ---
+function isPastDue(string dueDate) returns boolean {
+    time:Utc|error dueUtc = time:utcFromString(dueDate + "T00:00:00.00Z");
+    if dueUtc is error {
+        return false; // malformed date — skip rather than crash the scan
+    }
+    time:Utc now = time:utcNow();
+    return time:utcDiffSeconds(now, dueUtc) > 0d;
+}
 
 service /api on new http:Listener(8080) {
 
@@ -44,14 +89,36 @@ service /api on new http:Listener(8080) {
     # + assetTag - the unique asset identifier
     # + updatedAsset - the new asset payload
     resource function put assets/[string assetTag](@http:Payload Asset updatedAsset) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? existing = assetStore[assetTag];
+        if existing is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        Asset replacement = {
+            assetTag: assetTag,
+            name: updatedAsset.name,
+            description: updatedAsset?.description,
+            institution: updatedAsset.institution,
+            site: updatedAsset.site,
+            status: updatedAsset.status,
+            dateAcquired: updatedAsset.dateAcquired,
+            components: updatedAsset.components,
+            schedules: updatedAsset.schedules,
+            workOrders: updatedAsset.workOrders
+        };
+        assetStore[assetTag] = replacement;
+        return replacement;
     }
 
     # TODO (5 marks - part of "create and manage resources"):
     # Delete an asset. Validate it exists, then remove it from assetStore.
     # + assetTag - the unique asset identifier
     resource function delete assets/[string assetTag]() returns http:Ok|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        if !assetStore.hasKey(assetTag) {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+        _ = assetStore.remove(assetTag);
+        return <http:Ok>{body: {message: "Asset deleted", assetTag: assetTag}};
     }
 
     // =================================================================
@@ -62,14 +129,18 @@ service /api on new http:Listener(8080) {
     # Hint: `assetStore.toArray().filter(a => a.institution == institution)`
     # + institution - institution name to filter by
     resource function get assets/institution/[string institution]() returns Asset[] {
-        return [];
+        return assetStore.toArray().filter(function (Asset asset) returns boolean {
+            return asset.institution == institution;
+        });
     }
 
     # TODO (3 marks): Filter assets by institution AND site/campus.
     # + institution - institution name to filter by
     # + site - site/campus name to filter by
     resource function get assets/institution/[string institution]/site/[string site]() returns Asset[] {
-        return [];
+        return assetStore.toArray().filter(function (Asset asset) returns boolean {
+            return asset.institution == institution && asset.site == site;
+        });
     }
 
     // =================================================================
@@ -98,31 +169,83 @@ service /api on new http:Listener(8080) {
     # institutionId the same way asset creation does above.
     # + newInstitution - the institution payload
     resource function post institutions(@http:Payload Institution newInstitution) returns Institution|http:Conflict {
+        if institutionStore.hasKey(newInstitution.institutionId) {
+            return <http:Conflict>{
+                body: {message: "Institution with this institutionId already exists", errorCode: "DUPLICATE_INSTITUTION_ID"}
+            };
+        }
+        institutionStore[newInstitution.institutionId] = newInstitution;
         return newInstitution;
     }
 
     # TODO (5 marks): Remove an institution by id.
     # + institutionId - the unique institution identifier
     resource function delete institutions/[string institutionId]() returns http:Ok|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        if !institutionStore.hasKey(institutionId) {
+            return <http:NotFound>{body: {message: "Institution not found", errorCode: "INSTITUTION_NOT_FOUND"}};
+        }
+        _ = institutionStore.remove(institutionId);
+        return <http:Ok>{body: {message: "Institution deleted", institutionId: institutionId}};
     }
 
     // =================================================================
     // COMPONENTS  (part of "manage resources")
     // =================================================================
 
-    # TODO: Append a component to an asset's components array.
+    # Append a component to an asset's components array. Assigns a unique
+    # compId if the client didn't supply one.
     # + assetTag - the unique asset identifier
     # + newComponent - the component to add
     resource function post assets/[string assetTag]/components(@http:Payload Component newComponent) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        string compId = newComponent.compId.trim().length() > 0
+            ? newComponent.compId
+            : generateComponentId(assetTag);
+
+        Component componentToAdd = {
+            compId: compId,
+            name: newComponent.name,
+            description: newComponent?.description
+        };
+
+        asset.components.push(componentToAdd);
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
-    # TODO: Remove a component from an asset by compId.
+    # Remove a component from an asset by compId. 404 if either the
+    # asset or the component doesn't exist.
     # + assetTag - the unique asset identifier
     # + compId - the component identifier to remove
     resource function delete assets/[string assetTag]/components/[string compId]() returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        int? indexToRemove = ();
+        foreach int i in 0 ..< asset.components.length() {
+            if asset.components[i].compId == compId {
+                indexToRemove = i;
+                break;
+            }
+        }
+
+        if indexToRemove is () {
+            return <http:NotFound>{
+                body: {message: "Component not found on this asset", errorCode: "COMPONENT_NOT_FOUND"}
+            };
+        }
+
+        _ = asset.components.remove(indexToRemove);
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
     // =================================================================
@@ -147,33 +270,150 @@ service /api on new http:Listener(8080) {
     // WORK ORDERS & TASKS
     // =================================================================
 
-    # TODO: Open a new work order on an asset (e.g. reporting a fault).
+    # Open a new work order on an asset (e.g. reporting a fault).
+    # Defaults status to OPEN and assigns a unique orderId if missing.
     # + assetTag - the unique asset identifier
     # + newWorkOrder - the work order to open
     resource function post assets/[string assetTag]/workorders(@http:Payload WorkOrder newWorkOrder) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        string orderId = newWorkOrder.orderId.trim().length() > 0
+            ? newWorkOrder.orderId
+            : generateWorkOrderId(assetTag);
+
+        string status = newWorkOrder.status.trim().length() > 0
+            ? newWorkOrder.status
+            : "OPEN";
+
+        WorkOrder workOrderToAdd = {
+            orderId: orderId,
+            status: status,
+            description: newWorkOrder.description,
+            tasks: []
+        };
+
+        asset.workOrders.push(workOrderToAdd);
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
-    # TODO: Update a work order's status/description (e.g. OPEN -> CLOSED).
+    # Update a work order's status/description (e.g. OPEN -> IN_PROGRESS -> CLOSED).
+    # Existing orderId and nested tasks are preserved.
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     # + updatedWorkOrder - the new work order details
     resource function put assets/[string assetTag]/workorders/[string orderId](@http:Payload WorkOrder updatedWorkOrder) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        int? indexToUpdate = ();
+        foreach int i in 0 ..< asset.workOrders.length() {
+            if asset.workOrders[i].orderId == orderId {
+                indexToUpdate = i;
+                break;
+            }
+        }
+
+        if indexToUpdate is () {
+            return <http:NotFound>{
+                body: {message: "Work order not found on this asset", errorCode: "WORK_ORDER_NOT_FOUND"}
+            };
+        }
+
+        WorkOrder existing = asset.workOrders[indexToUpdate];
+        string status = updatedWorkOrder.status.trim().length() > 0
+            ? updatedWorkOrder.status
+            : existing.status;
+        string description = updatedWorkOrder.description.trim().length() > 0
+            ? updatedWorkOrder.description
+            : existing.description;
+
+        asset.workOrders[indexToUpdate] = {
+            orderId: existing.orderId,
+            status: status,
+            description: description,
+            tasks: existing.tasks
+        };
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
-    # TODO: Close/remove a work order.
+    # Close/remove a work order (and its nested tasks) from an asset.
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     resource function delete assets/[string assetTag]/workorders/[string orderId]() returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        int? indexToRemove = ();
+        foreach int i in 0 ..< asset.workOrders.length() {
+            if asset.workOrders[i].orderId == orderId {
+                indexToRemove = i;
+                break;
+            }
+        }
+
+        if indexToRemove is () {
+            return <http:NotFound>{
+                body: {message: "Work order not found on this asset", errorCode: "WORK_ORDER_NOT_FOUND"}
+            };
+        }
+
+        _ = asset.workOrders.remove(indexToRemove);
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 
-    # TODO: Add a sub-task to an existing work order (e.g. "replace screen").
+    # Add a sub-task to an existing work order (e.g. "replace screen").
+    # Assigns a unique taskId if the client didn't supply one.
     # + assetTag - the unique asset identifier
     # + orderId - the work order identifier
     # + newTask - the sub-task to add
     resource function post assets/[string assetTag]/workorders/[string orderId]/tasks(@http:Payload Task newTask) returns Asset|http:NotFound {
-        return <http:NotFound>{body: {message: "Not implemented yet", errorCode: "NOT_IMPLEMENTED"}};
+        Asset? asset = assetStore[assetTag];
+        if asset is () {
+            return <http:NotFound>{body: {message: "Asset not found", errorCode: "ASSET_NOT_FOUND"}};
+        }
+
+        int? workOrderIndex = ();
+        foreach int i in 0 ..< asset.workOrders.length() {
+            if asset.workOrders[i].orderId == orderId {
+                workOrderIndex = i;
+                break;
+            }
+        }
+
+        if workOrderIndex is () {
+            return <http:NotFound>{
+                body: {message: "Work order not found on this asset", errorCode: "WORK_ORDER_NOT_FOUND"}
+            };
+        }
+
+        string taskId = newTask.taskId.trim().length() > 0
+            ? newTask.taskId
+            : generateTaskId(assetTag);
+
+        Task taskToAdd = {
+            taskId: taskId,
+            description: newTask.description,
+            completed: newTask.completed
+        };
+
+        WorkOrder existing = asset.workOrders[workOrderIndex];
+        existing.tasks.push(taskToAdd);
+        asset.workOrders[workOrderIndex] = existing;
+        assetStore[assetTag] = asset;
+
+        return asset;
     }
 }
