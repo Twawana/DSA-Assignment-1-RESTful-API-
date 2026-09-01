@@ -110,9 +110,7 @@ service /api on new http:Listener(8080) {
         return <http:Ok>{body: {message: "Asset deleted", assetTag: assetTag}};
     }
 
-    // =================================================================
-    // INSTITUTION / SITE FILTERING  (mark scheme: 3 marks)
-    // =================================================================
+
 
 
     resource function get assets/institution/[string institution]() returns Asset[] {
@@ -128,9 +126,7 @@ service /api on new http:Listener(8080) {
         });
     }
 
-    // =================================================================
-    // MAINTENANCE & OVERDUE CHECKS  (mark scheme: 5 marks)
-    // =================================================================
+
 
 
     resource function get assets/overdue() returns Asset[] {
@@ -144,11 +140,7 @@ service /api on new http:Listener(8080) {
         });
     }
 
-    // =================================================================
-    // INSTITUTION MANAGEMENT  (mark scheme: 5 marks)
-    // =================================================================
-
-
+    
     resource function get institutions() returns Institution[] {
         return institutionStore.toArray();
     }
@@ -173,9 +165,7 @@ service /api on new http:Listener(8080) {
         return <http:Ok>{body: {message: "Institution deleted", institutionId: institutionId}};
     }
 
-    // =================================================================
-    // COMPONENTS  (part of "manage resources")
-    // =================================================================
+     
 
 
     resource function post assets/[string assetTag]/components(@http:Payload Component newComponent) returns Asset|http:NotFound {
@@ -227,10 +217,7 @@ service /api on new http:Listener(8080) {
         return asset;
     }
 
-    // =================================================================
-    // SCHEDULES  (mark scheme: 3 marks)
-    // =================================================================
-
+    
 
     resource function post assets/[string assetTag]/schedules(@http:Payload Schedule newSchedule) returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];
@@ -281,10 +268,7 @@ service /api on new http:Listener(8080) {
         return asset;
     }
 
-    // =================================================================
-    // WORK ORDERS & TASKS
-    // =================================================================
-
+    
 
     resource function post assets/[string assetTag]/workorders(@http:Payload WorkOrder newWorkOrder) returns Asset|http:NotFound {
         Asset? asset = assetStore[assetTag];

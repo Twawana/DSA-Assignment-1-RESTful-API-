@@ -51,7 +51,6 @@ public type Institution record {|
     string[] sites = [];
 |};
 
-
 public type ErrorDetail record {|
     string message;
     string errorCode;
