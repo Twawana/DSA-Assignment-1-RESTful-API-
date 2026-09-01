@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ledger — Library &amp; Resource Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="shell">
+  <nav class="rail">
+    <div class="rail-brand">Ledger<small>Library &amp; resource records</small></div>
+    <div class="rail-nav">
+      <button class="rail-link active" data-view="assets"><span class="dot"></span>Assets</button>
+      <button class="rail-link" data-view="institutions"><span class="dot"></span>Institutions</button>
+      <button class="rail-link" data-view="overdue"><span class="dot"></span>Overdue</button>
+    </div>
+    <div class="rail-footer">
+      <label for="apiBaseInput">API address</label>
+      <input id="apiBaseInput" value="http://localhost:8080/api" />
+      <div class="conn-status"><span class="conn-dot" id="connDot"></span><span id="connLabel">Checking connection…</span></div>
+    </div>
+  </nav>
+
+  <main id="mainView"></main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="assetDrawer" aria-label="Asset detail"></aside>
+
+<div class="modal" id="assetModal">
+  <div class="modal-card">
+    <h2>New asset</h2>
+    <form id="assetForm" class="modal-grid">
+      <div class="field"><label for="f-tag">Asset tag</label><input id="f-tag" required placeholder="NUST-LIB-3DP-001" /></div>
+      <div class="field"><label for="f-name">Name</label><input id="f-name" required placeholder="Pro-Series 3D Printer" /></div>
+      <div class="field"><label for="f-description">Description</label><input id="f-description" placeholder="Optional" /></div>
+      <div class="field"><label for="f-institution">Institution</label><input id="f-institution" required placeholder="Namibia University of Science and Technology" /></div>
+      <div class="field"><label for="f-site">Site / campus</label><input id="f-site" required placeholder="Main Campus - Innovation Lab" /></div>
+      <div class="field"><label for="f-date">Date acquired</label><input id="f-date" type="date" required /></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="assetModalCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add asset</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="instModal">
+  <div class="modal-card">
+    <h2>New institution</h2>
+    <form id="instForm" class="modal-grid">
+      <div class="field"><label for="i-id">Institution ID</label><input id="i-id" required placeholder="NUST-01" /></div>
+      <div class="field"><label for="i-name">Name</label><input id="i-name" required placeholder="Namibia University of Science and Technology" /></div>
+      <div class="field"><label for="i-sites">Sites (comma-separated)</label><input id="i-sites" placeholder="Main Campus, Suiderhof Campus" /></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="instModalCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add institution</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -13,7 +13,7 @@ public function main() returns error? {
         io:println("6. Schedule manager");
         io:println("7. Components & work orders");
         io:println("0. Exit");
-        string choice = io:readln("Select an option: ");
+        string choice = io:readln("Select an option: ").trim();
 
         match choice {
             "1" => {
@@ -48,8 +48,7 @@ public function main() returns error? {
     return;
 }
 
-# Fetches and prints the full asset list.
-# + return - an optional error while retrieving assets
+
 function showAllAssets() returns error? {
     Asset[]|error result = getAllAssets();
     if result is error {
@@ -65,14 +64,13 @@ function showAllAssets() returns error? {
     }
 }
 
-# Adds a new asset using console input.
-# + return - an optional error while creating the asset
+
 function addAssetFlow() returns error? {
-    string tag = io:readln("Asset tag: ");
-    string name = io:readln("Name: ");
-    string institution = io:readln("Institution: ");
-    string site = io:readln("Site/Campus: ");
-    string dateAcquired = io:readln("Date acquired (YYYY-MM-DD): ");
+    string tag = io:readln("Asset tag: ").trim();
+    string name = io:readln("Name: ").trim();
+    string institution = io:readln("Institution: ").trim();
+    string site = io:readln("Site/Campus: ").trim();
+    string dateAcquired = io:readln("Date acquired (YYYY-MM-DD): ").trim();
 
     Asset newAsset = {
         assetTag: tag,
@@ -90,14 +88,13 @@ function addAssetFlow() returns error? {
     }
 }
 
-# Displays assets for an institution, optionally filtered by site.
-# + return - an optional error while fetching the filtered asset list
+
 function campusViewFlow() returns error? {
-    string institution = io:readln("Institution: ");
-    string site = io:readln("Site/Campus (leave blank for all sites): ");
+    string institution = io:readln("Institution: ").trim();
+    string site = io:readln("Site/Campus (leave blank for all sites): ").trim();
 
     Asset[]|error result;
-    if site.trim() == "" {
+    if site.length() == 0 {
         result = getAssetsByInstitution(institution);
     } else {
         result = getAssetsByInstitutionAndSite(institution, site);
@@ -116,10 +113,9 @@ function campusViewFlow() returns error? {
     }
 }
 
-# Lets the user change an asset status between loaned and occupied.
-# + return - an optional error while loading or updating the asset
+
 function loanOrBookFlow() returns error? {
-    string tag = io:readln("Asset tag to loan/book: ");
+    string tag = io:readln("Asset tag to loan/book: ").trim();
 
     Asset|error current = getAsset(tag);
     if current is error {
@@ -127,7 +123,7 @@ function loanOrBookFlow() returns error? {
         return;
     }
 
-    string statusChoice = io:readln("Set status to (1) LOANED_OUT or (2) OCCUPIED: ");
+    string statusChoice = io:readln("Set status to (1) LOANED_OUT or (2) OCCUPIED: ").trim();
     AssetStatus newStatus = statusChoice == "2" ? OCCUPIED : LOANED_OUT;
 
     Asset updated = current;
@@ -141,8 +137,7 @@ function loanOrBookFlow() returns error? {
     }
 }
 
-# Fetches and prints every asset with an overdue schedule.
-# + return - an optional error while loading overdue assets
+
 function showOverdueDashboard() returns error? {
     Asset[]|error result = getOverdueAssets();
     if result is error {
@@ -162,17 +157,16 @@ function showOverdueDashboard() returns error? {
     }
 }
 
-# Lets the user add or remove a schedule on a given asset.
-# + return - an optional error while managing schedules
+
 function scheduleManagerFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string action = io:readln("Add or remove a schedule? (add/remove): ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string action = io:readln("Add or remove a schedule? (add/remove): ").trim();
 
     if action == "add" {
-        string scheduleId = io:readln("Schedule ID: ");
-        string scheduleType = io:readln("Type (MAINTENANCE/BOOKING/SERVICING): ");
-        string dueDate = io:readln("Due date (YYYY-MM-DD): ");
-        string description = io:readln("Description: ");
+        string scheduleId = io:readln("Schedule ID: ").trim();
+        string scheduleType = io:readln("Type (MAINTENANCE/BOOKING/SERVICING): ").trim();
+        string dueDate = io:readln("Due date (YYYY-MM-DD): ").trim();
+        string description = io:readln("Description: ").trim();
 
         Schedule newSchedule = {
             scheduleId: scheduleId,
@@ -188,7 +182,7 @@ function scheduleManagerFlow() returns error? {
             io:println("Error adding schedule: ", result.message());
         }
     } else if action == "remove" {
-        string scheduleId = io:readln("Schedule ID to remove: ");
+        string scheduleId = io:readln("Schedule ID to remove: ").trim();
 
         Asset|error result = removeSchedule(assetTag, scheduleId);
         if result is Asset {
@@ -201,8 +195,7 @@ function scheduleManagerFlow() returns error? {
     }
 }
 
-# Submenu for nested components, work orders, and tasks on an asset.
-# + return - an optional error while handling nested asset operations
+
 function componentsAndWorkOrdersMenu() returns error? {
     boolean inMenu = true;
     while inMenu {
@@ -215,7 +208,7 @@ function componentsAndWorkOrdersMenu() returns error? {
         io:println("6. Remove a work order");
         io:println("7. Add a task to a work order");
         io:println("0. Back");
-        string choice = io:readln("Select an option: ");
+        string choice = io:readln("Select an option: ").trim();
 
         match choice {
             "1" => {
@@ -250,7 +243,7 @@ function componentsAndWorkOrdersMenu() returns error? {
 }
 
 function viewAssetFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
+    string assetTag = io:readln("Asset tag: ").trim();
     Asset|error result = getAsset(assetTag);
     if result is error {
         io:println("Failed to fetch asset: ", result.message());
@@ -260,15 +253,15 @@ function viewAssetFlow() returns error? {
 }
 
 function addComponentFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string name = io:readln("Component name: ");
-    string description = io:readln("Description (optional): ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string name = io:readln("Component name: ").trim();
+    string description = io:readln("Description (optional): ").trim();
 
     Component newComponent = {
         compId: "",
         name: name
     };
-    if description.trim().length() > 0 {
+    if description.length() > 0 {
         newComponent.description = description;
     }
 
@@ -282,8 +275,8 @@ function addComponentFlow() returns error? {
 }
 
 function removeComponentFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string compId = io:readln("Component ID: ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string compId = io:readln("Component ID: ").trim();
 
     Asset|error result = removeComponent(assetTag, compId);
     if result is Asset {
@@ -295,8 +288,8 @@ function removeComponentFlow() returns error? {
 }
 
 function openWorkOrderFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string description = io:readln("Work order description: ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string description = io:readln("Work order description: ").trim();
 
     WorkOrder newWorkOrder = {
         orderId: "",
@@ -314,10 +307,10 @@ function openWorkOrderFlow() returns error? {
 }
 
 function updateWorkOrderFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string orderId = io:readln("Work order ID: ");
-    string status = io:readln("New status (OPEN / IN_PROGRESS / CLOSED): ");
-    string description = io:readln("New description (leave blank to keep current): ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string orderId = io:readln("Work order ID: ").trim();
+    string status = io:readln("New status (OPEN / IN_PROGRESS / CLOSED): ").trim();
+    string description = io:readln("New description (leave blank to keep current): ").trim();
 
     WorkOrder updatedWorkOrder = {
         orderId: orderId,
@@ -335,8 +328,8 @@ function updateWorkOrderFlow() returns error? {
 }
 
 function removeWorkOrderFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string orderId = io:readln("Work order ID: ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string orderId = io:readln("Work order ID: ").trim();
 
     Asset|error result = deleteWorkOrder(assetTag, orderId);
     if result is Asset {
@@ -348,9 +341,9 @@ function removeWorkOrderFlow() returns error? {
 }
 
 function addTaskFlow() returns error? {
-    string assetTag = io:readln("Asset tag: ");
-    string orderId = io:readln("Work order ID: ");
-    string description = io:readln("Task description: ");
+    string assetTag = io:readln("Asset tag: ").trim();
+    string orderId = io:readln("Work order ID: ").trim();
+    string description = io:readln("Task description: ").trim();
 
     Task newTask = {
         taskId: "",

@@ -43,6 +43,14 @@ function isPastDue(string dueDate) returns boolean {
     return time:utcDiffSeconds(now, dueUtc) > 0d;
 }
 
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: ["*"],
+        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowHeaders: ["Content-Type"]
+    }
+}
+
 service /api on new http:Listener(8080) {
 
 
